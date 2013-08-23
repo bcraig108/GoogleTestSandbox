@@ -1,0 +1,150 @@
+From:	Wagner, Eric J
+Sent:	Friday, June 07, 2013 8:40 AM
+To:	Craig, Brian M
+Subject:	RE: Google Test
+
+so my biggest questions are things like: 
+       
+[ ] how do we test track management?  assigning detections to tracks, verifying decision-
+making code
+
+It’s hard to setup this complex of a test without having the code.  Initially I think 
+we would need a robust simulation to compare against.  Also there may be the 
+need for some fuzzy-type tests.  i.e. values within a certain range within a 
+certain number of updates
+
+Agreed. On MEADS we used tap points and MatLAB to compare ins/outs of algorithms and it worked 
+well. Was curious if there were nifty alternatives here, but I know that’s optimistic. :)
+
+       how do we test time-dependent conditions? time-out interface in 10 seconds if no 
+heartbeat received, decay track confidence
+
+I think there is some ability to test time – it does appear to be tracked, given the 
+output.  I don’t know how good these are in isolation.  You can’t really say you 
+are meeting a timeline if you are running an isolated single-thread test.  I need 
+to think about this a bit
+I wonder if you could do things like: 
+       ASSERT_TRUE(myPrivateValue==CONNECTED);
+       sleep(10);
+       ASSERT_TRUE(myPrivateValue==NOT_CONNECTED);
+
+It breaks the “Unit tests must run lightning fast” rule, but it’s a pretty specific exception.
+
+       Can we use ASSERTs and EXPECT_s with complex data like arrays? (e.g. can we serialize 
+a vector of tracks and compare before/after)?
+
+This is on my short list.  Definitely want to understand this.
+
+Some other random thoughts on this:  I like the idea of different suites of test to accomplish 
+different things.  
+
+*	Unit tests, quite obviously, get us past the unit test wicket.  
+*	We can look at higher-level thread type tests for CSC integration.
+*	SRS-level “shall” tests should support SQT.
+
+The command-line options on gtest allow us to filter these test, so if we group them correctly, 
+we should be able to turn them on and off at will.
+
+Agreed. I also think we should consider something we did on MEADS – all algorithms were put into a 
+library. This made it easy to test them stand-alone and prevented the code from intertwining itself with 
+the algorithms, making them easier to modify. We did it to prove to the Italians we implemented their 
+design properly but it has tremendous benefits to testing and maintenance. 
+
+Another one I want to look at is the ability to test text going to a logger (or standard output).  I 
+assume this is something gmock can do.  I would love to have the ability to test logged values 
+without having to type out the entire logged string.  If you could use regexs or wildcards to look 
+for certain keywords or values in the log, that would be awesome.
+
+Yes, that would. :)
+
+Also, we need to get Coverity ready to go for ARP.  I am not sure what condition that is in right 
+now on the AHE network, but we should look into getting the latest and greatest up and 
+running.  I will continue to plug away on these things in my spare time.  I still have not played 
+with gmock, but I did build it, and it’s also on my mental list.  Let me know if you can think of 
+anything else.
+
+Ask Dave Reed. I believe he ran it on CRS. 
+
+Brian
+
+From: Wagner, Eric J  
+Sent: Friday, June 07, 2013 7:56 AM 
+To: Craig, Brian M 
+Subject: RE: Google Test
+
+I don’t really have a problem going protected vs. private. It still scopes the data to “the family” 
+so you can’t poke at the internals willy-nilly. If there’s a reason to prevent derived classes from 
+using protected data/methods, we can comment the parent class with an explanation. It’s the 
+cleanest way to support testing, and in the end it’s what we really need. 
+
+I also like that it appears to support SetUp() and TearDown() which will be critical for testing odd 
+transitions and boundaries. Persistent state has always been difficult to test in C++.
+
+I’ll think on testing strategies, but the two areas I’m most interested in generally are forcing 
+error conditions to ensure proper handling and manipulation of state transitions. The state 
+management is one good reason to make internals protected because it’s the cleanest way to 
+ensure states move properly.  So this is the test I love most:
+
+ 
+
+so my biggest questions are things like: 
+       how do we test track management?  assigning detections to tracks, verifying decision-
+making code
+       how do we test time-dependent conditions? time-out interface in 10 seconds if no 
+heartbeat received, decay track confidence
+       Can we use ASSERTs and EXPECT_s with complex data like arrays? (e.g. can we serialize 
+a vector of tracks and compare before/after)?
+
+and just to be sure you don’t think this is sandbox stuff, ARP is proceeding and I fully expect 
+we’re going to fire it up. I’m planning on needing you on it sooner than your DO4 task is 
+scheduled to run. If possible, kill that DO4 task as quickly as you can and be ready to establish 
+Googletest guidance in the July time frame. ARP will be high profile and aggressively risk-
+mitigated. I am committed to automated testing and when we succeed with ARP I expect it to 
+be a huge lesson learned. 
+
+This is your chance to school Syracuse on how testing SHOULD be done. ;-)
+
+E
+
+
+From: Craig, Brian M  
+Sent: Thursday, June 06, 2013 3:22 PM 
+To: Wagner, Eric J 
+Subject: RE: Google Test
+
+From: Wagner, Eric J  
+Sent: Thursday, June 06, 2013 2:58 PM 
+To: Craig, Brian M 
+Subject: RE: Google Test
+
+
+So easy a caveman… Uh – no – very very difficult.  You need to put very senior 
+people in charge it.  Here’s the code.  You just include <gtest/gtest.h> in your 
+test file, link the archive into your build and away you go!
+
+Looking at it (very) quickly, the testing code looks extremely lightweight. The test class is 
+derived from the base class so it can see permissible internals and access them directly… 
+I assume it’s still C++ compliant and you can’t see private members? 
+
+Yes – I looked into this a bit.  You can (with evil trickery or ugly test code built 
+into your production code) get around the private members.  There are three 
+solutions that I saw:
+1)	Use protected and not private and the use a derived test class to make them 
+public – the approach I took
+2)	Redefine private to public using a macro in your test code – evil
+3)	Use a macro that called PRIVATE_TESTABLE in place of private, which makes 
+private public when compiled into the test driver – ugly and non-standard
+
+There is no clean way to test private members.  I would suggest that there are 
+very few cases where private is really needed.  I suspect that most of the time 
+protected will do the job.
+
+I like the way you can run tests in isolation, group them if needed and run the whole 
+suite even with failures. Very cool and incredibly lightweight. 
+
+I plan to look into file I/O and larger blocks of data (arrays/structs/objects) a 
+bit.  I can see the utility of reading test input and expected results from a 
+data/text file.  Since I am looking at this, if you can think of any test setups to 
+try, I would be happy to test them out.  
+
+
