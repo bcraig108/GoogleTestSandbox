@@ -28,7 +28,8 @@
 TARGET += sandbox
 
 # objects to include in executable (production objects - no test objects)
-PROD_OBJ += $(OBJ_DIR)/u_tcGoogleTestPrimer.o \
+PROD_OBJ += $(OBJ_DIR)/u_tcGoogleTestAssertions.o \
+				$(OBJ_DIR)/u_tcGoogleTestPrimer.o \
             $(OBJ_DIR)/u_tcMyClass.o \
             $(OBJ_DIR)/u_tcMath.o \
             $(OBJ_DIR)/u_tcTurtle.o \
